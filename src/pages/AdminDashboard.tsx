@@ -9,51 +9,61 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Edit, Trash2, Users, ShieldCheck } from 'lucide-react';
+import { Edit, Trash2, Users, ShieldCheck, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import Navbar from '@/components/Navbar';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const session = getSession();
-  const [users, setUsers] = useState(getUsers());
-  const [editUser, setEditUser] = useState<User | null>(null);
+  const [session, setSessionData] = useState<User | null>(null);
+  const [users, setUsersList] = useState<User[]>([]);
+  const [editUserData, setEditUserData] = useState<User | null>(null);
   const [editForm, setEditForm] = useState({ name: '', email: '', phone: '', role: '' as Role });
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!session || session.role !== 'admin') navigate('/login');
-  }, [session, navigate]);
+  useEffect(() => { loadData(); }, []);
 
-  if (!session) return null;
-
-  const refreshUsers = () => setUsers(getUsers());
+  const loadData = async () => {
+    setLoading(true);
+    const user = await getSession();
+    if (!user || user.role !== 'admin') { navigate('/login'); return; }
+    setSessionData(user);
+    const allUsers = await getUsers();
+    setUsersList(allUsers);
+    setLoading(false);
+  };
 
   const openEdit = (u: User) => {
-    setEditUser(u);
+    setEditUserData(u);
     setEditForm({ name: u.name, email: u.email, phone: u.phone, role: u.role });
     setDialogOpen(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editUser) return;
-    updateUser(editUser.id, editForm);
+    if (!editUserData) return;
+    await updateUser(editUserData.id, editForm);
     toast.success('Account updated');
-    refreshUsers();
+    await loadData();
     setDialogOpen(false);
   };
 
-  const handleDeleteUser = (id: string) => {
-    if (id === session.id) {
-      toast.error("You can't delete your own account");
-      return;
-    }
-    deleteUser(id);
+  const handleDeleteUser = async (id: string) => {
+    if (session && id === session.id) { toast.error("You can't delete your own account"); return; }
+    await deleteUser(id);
     toast.success('Account deleted');
-    refreshUsers();
+    await loadData();
   };
+
+  if (loading || !session) return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
+        <Sparkles className="w-8 h-8 text-primary" />
+      </motion.div>
+    </div>
+  );
 
   const renderTable = (role: Role) => {
     const filtered = users.filter(u => u.role === role);
@@ -103,7 +113,7 @@ export default function AdminDashboard() {
           <p className="text-muted-foreground font-sans mb-8">Manage all staff and user accounts</p>
 
           <div className="grid md:grid-cols-3 gap-4 mb-8">
-            <Card className="glass-card">
+            <Card className="glass-card hover:shadow-lg hover:shadow-primary/5 transition-shadow">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-sans text-muted-foreground flex items-center gap-2">
                   <Users className="w-4 h-4 text-primary" /> Total Users
@@ -113,7 +123,7 @@ export default function AdminDashboard() {
                 <div className="text-4xl font-bold tracking-wider">{users.filter(u => u.role === 'user').length}</div>
               </CardContent>
             </Card>
-            <Card className="glass-card">
+            <Card className="glass-card hover:shadow-lg hover:shadow-primary/5 transition-shadow">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-sans text-muted-foreground flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-primary" /> Staff
@@ -123,7 +133,7 @@ export default function AdminDashboard() {
                 <div className="text-4xl font-bold tracking-wider">{users.filter(u => u.role === 'staff').length}</div>
               </CardContent>
             </Card>
-            <Card className="glass-card">
+            <Card className="glass-card hover:shadow-lg hover:shadow-primary/5 transition-shadow">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-sans text-muted-foreground flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-secondary" /> Admins

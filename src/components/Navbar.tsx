@@ -1,17 +1,22 @@
 import { ShoppingCart, Menu, X, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate, Link } from 'react-router-dom';
-import { getSession, logout } from '@/lib/store';
-import { useState } from 'react';
+import { getSession, logout, type User } from '@/lib/store';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Navbar() {
   const navigate = useNavigate();
-  const session = getSession();
+  const [session, setSessionData] = useState<User | null>(null);
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    getSession().then(setSessionData);
+  }, []);
 
   const handleLogout = () => {
     logout();
+    setSessionData(null);
     navigate('/');
     setOpen(false);
   };

@@ -15,17 +15,21 @@ export default function Signup() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     try {
-      const user = signup(name, email, password, phone);
+      const user = await signup(name, email, password, phone);
       setSession(user.id);
       toast.success('Welcome to IZI MART!');
       navigate('/member');
     } catch (err: any) {
       toast.error(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -67,7 +71,9 @@ export default function Signup() {
                   <Label className="font-sans">Password</Label>
                   <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
                 </div>
-                <Button type="submit" className="w-full rounded-full font-sans font-semibold">Create Account</Button>
+                <Button type="submit" className="w-full rounded-full font-sans font-semibold" disabled={loading}>
+                  {loading ? 'Creating account...' : 'Create Account'}
+                </Button>
               </form>
               <p className="text-center text-sm text-muted-foreground font-sans mt-4">
                 Already a member?{' '}

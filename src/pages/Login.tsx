@@ -13,18 +13,22 @@ import Navbar from '@/components/Navbar';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoading(true);
     try {
-      const user = login(email, password);
+      const user = await login(email, password);
       toast.success(`Welcome back, ${user.name}!`);
       if (user.role === 'admin') navigate('/admin');
       else if (user.role === 'staff') navigate('/staff');
       else navigate('/member');
     } catch (err: any) {
       toast.error(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -58,7 +62,9 @@ export default function Login() {
                   <Label className="font-sans">Password</Label>
                   <Input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
                 </div>
-                <Button type="submit" className="w-full rounded-full font-sans font-semibold">Sign In</Button>
+                <Button type="submit" className="w-full rounded-full font-sans font-semibold" disabled={loading}>
+                  {loading ? 'Signing in...' : 'Sign In'}
+                </Button>
               </form>
               <p className="text-center text-sm text-muted-foreground font-sans mt-4">
                 Don't have an account?{' '}

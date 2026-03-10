@@ -1,72 +1,157 @@
-import { useState, useEffect } from 'react';
-import { getSession, getUsers, updateUser, deleteUser, type User, type Role } from '@/lib/store';
-import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Edit, Trash2, Users, ShieldCheck, Sparkles } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { toast } from 'sonner';
-import Navbar from '@/components/Navbar';
+import { useState, useEffect } from "react";
+import {
+  getSession,
+  getUsers,
+  updateUser,
+  deleteUser,
+  signup,
+  type User,
+  type Role,
+} from "@/lib/store";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Edit, Trash2, Users, ShieldCheck, Sparkles } from "lucide-react";
+import { motion } from "framer-motion";
+import { toast } from "sonner";
+import Navbar from "@/components/Navbar";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [session, setSessionData] = useState<User | null>(null);
   const [users, setUsersList] = useState<User[]>([]);
   const [editUserData, setEditUserData] = useState<User | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', email: '', phone: '', role: '' as Role });
+  const [editForm, setEditForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    role: "user" as Role,
+    password: "",
+  });
+  const [isAdding, setIsAdding] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
     const user = await getSession();
-    if (!user || user.role !== 'admin') { navigate('/login'); return; }
+    if (!user || user.role !== "admin") {
+      navigate("/login");
+      return;
+    }
     setSessionData(user);
     const allUsers = await getUsers();
     setUsersList(allUsers);
     setLoading(false);
   };
 
+  const openAdd = () => {
+    setEditUserData(null);
+    setIsAdding(true);
+    setEditForm({ name: "", email: "", phone: "", role: "user", password: "" });
+    setDialogOpen(true);
+  };
+
   const openEdit = (u: User) => {
     setEditUserData(u);
-    setEditForm({ name: u.name, email: u.email, phone: u.phone, role: u.role });
+    setIsAdding(false);
+    setEditForm({
+      name: u.name,
+      email: u.email,
+      phone: u.phone,
+      role: u.role,
+      password: "",
+    });
     setDialogOpen(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editUserData) return;
-    await updateUser(editUserData.id, editForm);
-    toast.success('Account updated');
-    await loadData();
-    setDialogOpen(false);
+    try {
+      if (isAdding) {
+        if (!editForm.password) {
+          toast.error("Password is required for new accounts");
+          return;
+        }
+        await signup(
+          editForm.name,
+          editForm.email,
+          editForm.password,
+          editForm.phone,
+          editForm.role,
+        );
+        toast.success("New account created successfully");
+      } else {
+        if (!editUserData) return;
+        // Omit password from update mapping if empty to avoid accidentally setting blank passwords
+        const updateData = {
+          name: editForm.name,
+          email: editForm.email,
+          phone: editForm.phone,
+          role: editForm.role,
+        };
+        await updateUser(editUserData.id, updateData);
+        toast.success("Account updated successfully");
+      }
+      await loadData();
+      setDialogOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || "Operation failed");
+    }
   };
 
   const handleDeleteUser = async (id: string) => {
-    if (session && id === session.id) { toast.error("You can't delete your own account"); return; }
+    if (session && id === session.id) {
+      toast.error("You can't delete your own account");
+      return;
+    }
     await deleteUser(id);
-    toast.success('Account deleted');
+    toast.success("Account deleted");
     await loadData();
   };
 
-  if (loading || !session) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}>
-        <Sparkles className="w-8 h-8 text-primary" />
-      </motion.div>
-    </div>
-  );
+  if (loading || !session)
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        >
+          <Sparkles className="w-8 h-8 text-primary" />
+        </motion.div>
+      </div>
+    );
 
   const renderTable = (role: Role) => {
-    const filtered = users.filter(u => u.role === role);
+    const filtered = users.filter((u) => u.role === role);
     return (
       <Card className="glass-card">
         <Table>
@@ -82,22 +167,47 @@ export default function AdminDashboard() {
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground font-sans">No {role}s found</TableCell></TableRow>
-            ) : filtered.map(u => (
-              <TableRow key={u.id}>
-                <TableCell className="font-sans font-medium">{u.name}</TableCell>
-                <TableCell className="font-sans">{u.email}</TableCell>
-                <TableCell className="font-sans">{u.phone}</TableCell>
-                <TableCell className="font-sans">{u.points}</TableCell>
-                <TableCell>
-                  <span className="text-xs uppercase bg-primary/10 text-primary px-2 py-0.5 rounded-full font-sans">{u.role}</span>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(u)}><Edit className="w-4 h-4" /></Button>
-                  <Button variant="ghost" size="icon" onClick={() => handleDeleteUser(u.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+              <TableRow>
+                <TableCell
+                  colSpan={6}
+                  className="text-center text-muted-foreground font-sans"
+                >
+                  No {role}s found
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filtered.map((u) => (
+                <TableRow key={u.id}>
+                  <TableCell className="font-sans font-medium">
+                    {u.name}
+                  </TableCell>
+                  <TableCell className="font-sans">{u.email}</TableCell>
+                  <TableCell className="font-sans">{u.phone}</TableCell>
+                  <TableCell className="font-sans">{u.points}</TableCell>
+                  <TableCell>
+                    <span className="text-xs uppercase bg-primary/10 text-primary px-2 py-0.5 rounded-full font-sans">
+                      {u.role}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openEdit(u)}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteUser(u.id)}
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </Card>
@@ -108,9 +218,16 @@ export default function AdminDashboard() {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="max-w-6xl mx-auto px-4 pt-24 pb-12">
-        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
-          <h1 className="text-4xl md:text-6xl font-bold tracking-wider mb-2 gradient-text">ADMIN PANEL</h1>
-          <p className="text-muted-foreground font-sans mb-8">Manage all staff and user accounts</p>
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+        >
+          <h1 className="text-4xl md:text-6xl font-bold tracking-wider mb-2 gradient-text">
+            ADMIN PANEL
+          </h1>
+          <p className="text-muted-foreground font-sans mb-8">
+            Manage all staff and user accounts
+          </p>
 
           <div className="grid md:grid-cols-3 gap-4 mb-8">
             <Card className="glass-card hover:shadow-lg hover:shadow-primary/5 transition-shadow">
@@ -120,7 +237,9 @@ export default function AdminDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold tracking-wider">{users.filter(u => u.role === 'user').length}</div>
+                <div className="text-4xl font-bold tracking-wider">
+                  {users.filter((u) => u.role === "user").length}
+                </div>
               </CardContent>
             </Card>
             <Card className="glass-card hover:shadow-lg hover:shadow-primary/5 transition-shadow">
@@ -130,7 +249,9 @@ export default function AdminDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold tracking-wider">{users.filter(u => u.role === 'staff').length}</div>
+                <div className="text-4xl font-bold tracking-wider">
+                  {users.filter((u) => u.role === "staff").length}
+                </div>
               </CardContent>
             </Card>
             <Card className="glass-card hover:shadow-lg hover:shadow-primary/5 transition-shadow">
@@ -140,9 +261,24 @@ export default function AdminDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-4xl font-bold tracking-wider">{users.filter(u => u.role === 'admin').length}</div>
+                <div className="text-4xl font-bold tracking-wider">
+                  {users.filter((u) => u.role === "admin").length}
+                </div>
               </CardContent>
             </Card>
+          </div>
+
+          <div className="flex justify-between items-center mb-6 mt-8">
+            <h2 className="text-2xl font-bold tracking-wider gradient-text font-sans">
+              User Management
+            </h2>
+            <Button
+              onClick={() => openAdd()}
+              className="rounded-full font-sans"
+            >
+              <Users className="w-4 h-4 mr-2" />
+              Add User
+            </Button>
           </div>
 
           <Tabs defaultValue="staff" className="space-y-6">
@@ -151,33 +287,78 @@ export default function AdminDashboard() {
               <TabsTrigger value="user">Users</TabsTrigger>
               <TabsTrigger value="admin">Admins</TabsTrigger>
             </TabsList>
-            <TabsContent value="staff">{renderTable('staff')}</TabsContent>
-            <TabsContent value="user">{renderTable('user')}</TabsContent>
-            <TabsContent value="admin">{renderTable('admin')}</TabsContent>
+            <TabsContent value="staff">{renderTable("staff")}</TabsContent>
+            <TabsContent value="user">{renderTable("user")}</TabsContent>
+            <TabsContent value="admin">{renderTable("admin")}</TabsContent>
           </Tabs>
 
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle className="tracking-wider">EDIT ACCOUNT</DialogTitle>
+                <DialogTitle className="tracking-wider text-2xl mb-4 text-center gradient-text">
+                  {isAdding ? "ADD NEW USER" : "EDIT ACCOUNT"}
+                </DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSave} className="space-y-4">
                 <div className="space-y-2">
                   <Label className="font-sans">Name</Label>
-                  <Input value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} required />
+                  <Input
+                    value={editForm.name}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, name: e.target.value })
+                    }
+                    placeholder="Full Name"
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label className="font-sans">Email</Label>
-                  <Input type="email" value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} required />
+                  <Input
+                    type="email"
+                    value={editForm.email}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, email: e.target.value })
+                    }
+                    placeholder="Email Address"
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label className="font-sans">Phone</Label>
-                  <Input value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} required />
+                  <Input
+                    value={editForm.phone}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, phone: e.target.value })
+                    }
+                    placeholder="Phone Number"
+                    required
+                  />
                 </div>
+                {isAdding && (
+                  <div className="space-y-2">
+                    <Label className="font-sans">Password</Label>
+                    <Input
+                      type="password"
+                      value={editForm.password || ""}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, password: e.target.value })
+                      }
+                      placeholder="Enter temporary password"
+                      required={isAdding}
+                    />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label className="font-sans">Role</Label>
-                  <Select value={editForm.role} onValueChange={(v: Role) => setEditForm({ ...editForm, role: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Select
+                    value={editForm.role}
+                    onValueChange={(v: Role) =>
+                      setEditForm({ ...editForm, role: v })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="user">User</SelectItem>
                       <SelectItem value="staff">Staff</SelectItem>
@@ -185,7 +366,12 @@ export default function AdminDashboard() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button type="submit" className="w-full rounded-full font-sans">Save Changes</Button>
+                <Button
+                  type="submit"
+                  className="w-full rounded-full font-sans mt-4"
+                >
+                  {isAdding ? "Create Account" : "Save Changes"}
+                </Button>
               </form>
             </DialogContent>
           </Dialog>
